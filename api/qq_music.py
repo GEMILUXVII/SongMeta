@@ -188,6 +188,120 @@ class QQMusicAPI:
             result['cover_url'] = f"https://y.gtimg.cn/music/photo_new/T002R300x300M000{album_mid}.jpg"
         
         return result
+    
+    def parse_share_link(self, share_link: str) -> Optional[str]:
+        """
+        解析QQ音乐分享链接，提取歌曲mid
+        
+        Args:
+            share_link: QQ音乐分享链接，如 https://c.y.qq.com/base/fcgi-bin/u?__=xxx
+                       或 https://y.qq.com/n/ryqq/songDetail/xxx
+                       或 https://i.y.qq.com/v8/playsong.html?songmid=xxx
+        
+        Returns:
+            歌曲mid，若解析失败返回None
+        """
+        # 处理短链接，需要跟随重定向
+        if 'c.y.qq.com' in share_link or 'c6.y.qq.com' in share_link:
+            try:
+                response = self.session.get(share_link, allow_redirects=True, timeout=10)
+                share_link = response.url
+            except requests.RequestException as e:
+                print(f"[错误] 解析短链接失败: {e}")
+                return None
+        
+        # 从URL中提取songmid
+        patterns = [
+            r'songmid=([a-zA-Z0-9]+)',  # songmid参数
+            r'songDetail/([a-zA-Z0-9]+)',  # songDetail路径
+            r'/song/([a-zA-Z0-9]+)',  # song路径
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, share_link)
+            if match:
+                return match.group(1)
+        
+        return None
+    
+    def get_song_info_by_mid(self, song_mid: str) -> dict:
+        """
+        通过歌曲mid获取歌曲信息
+        
+        Args:
+            song_mid: 歌曲的mid标识
+        
+        Returns:
+            包含 title, artist, cover_url, album_mid 的字典
+        """
+        # 使用歌曲详情API
+        url = "https://c.y.qq.com/v8/fcg-bin/fcg_play_single_song.fcg"
+        params = {
+            'songmid': song_mid,
+            'format': 'json',
+        }
+        
+        result = {
+            'title': None,
+            'artist': None,
+            'cover_url': None,
+            'album_mid': None,
+        }
+        
+        try:
+            response = self.session.get(url, params=params, timeout=10)
+            data = response.json()
+            
+            songs = data.get('data', [])
+            if not songs:
+                return result
+            
+            song = songs[0]
+            result['title'] = song.get('name', '')
+            
+            # 提取歌手
+            singers = song.get('singer', [])
+            if singers:
+                artist_names = [s.get('name', '') for s in singers if s.get('name')]
+                result['artist'] = ' / '.join(artist_names)
+            
+            # 提取专辑mid和封面
+            album_mid = song.get('album', {}).get('mid', '')
+            if album_mid:
+                result['album_mid'] = album_mid
+                result['cover_url'] = f"https://y.gtimg.cn/music/photo_new/T002R300x300M000{album_mid}.jpg"
+            
+            return result
+        
+        except Exception as e:
+            print(f"[错误] 获取歌曲信息失败: {e}")
+            return result
+    
+    def download_cover_from_link(self, share_link: str, save_path: str | Path) -> bool:
+        """
+        从QQ音乐分享链接下载封面
+        
+        Args:
+            share_link: QQ音乐分享链接
+            save_path: 保存路径
+        
+        Returns:
+            是否下载成功
+        """
+        song_mid = self.parse_share_link(share_link)
+        if not song_mid:
+            print("[错误] 无法解析分享链接")
+            return False
+        
+        song_info = self.get_song_info_by_mid(song_mid)
+        if not song_info.get('cover_url'):
+            print("[错误] 无法获取封面URL")
+            return False
+        
+        print(f"歌曲: {song_info.get('title', '未知')}")
+        print(f"歌手: {song_info.get('artist', '未知')}")
+        
+        return self.download_cover(song_info['cover_url'], save_path)
 
 
 # 模块级便捷函数

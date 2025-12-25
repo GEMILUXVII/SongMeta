@@ -78,6 +78,7 @@ def main():
     source_dir = Path(args.source).resolve()
     output_dir = Path(args.output).resolve()
     covers_dir = Path(args.covers).resolve() if args.covers else output_dir / 'covers'
+    audio_dir = output_dir / 'audio'  # 音频输出目录
     
     # 验证源目录
     if not source_dir.exists():
@@ -87,14 +88,16 @@ def main():
     # 创建输出目录
     ensure_directory(output_dir)
     ensure_directory(covers_dir)
+    ensure_directory(audio_dir)
     
     print(f"源目录: {source_dir}")
     print(f"输出目录: {output_dir}")
+    print(f"音频目录: {audio_dir}")
     print(f"封面目录: {covers_dir}")
     print("-" * 50)
     
     # 1. 扫描源目录
-    print("[1/5] 扫描源目录...")
+    print("[1/6] 扫描源目录...")
     file_pairs = scan_source_directory(source_dir)
     print(f"      找到 {len(file_pairs)} 个MP3文件")
     
@@ -103,13 +106,20 @@ def main():
         return
     
     # 2. 提取歌名并导出
-    print("[2/5] 提取歌曲名...")
+    print("[2/6] 提取歌曲名...")
     song_names = [pair['song_name'] for pair in file_pairs]
     songs_file = export_song_names(song_names, output_dir / 'songsname.txt')
     print(f"      已导出歌名列表到: {songs_file}")
     
-    # 3. 处理每首歌曲
-    print("[3/5] 处理歌曲文件...")
+    # 3. 重命名并复制MP3文件
+    print("[3/6] 重命名并复制MP3文件...")
+    for i, pair in enumerate(file_pairs, 1):
+        song_name = pair['song_name']
+        new_path = rename_mp3_file(pair['mp3_path'], song_name, audio_dir)
+        print(f"      [{i}/{len(file_pairs)}] {pair['original_name']} -> {new_path.name}")
+    
+    # 4. 处理每首歌曲元数据
+    print("[4/6] 处理歌曲元数据...")
     processed_songs = []
     
     for i, pair in enumerate(file_pairs, 1):
@@ -142,8 +152,8 @@ def main():
             'date': date,
         })
     
-    # 4. 生成元数据
-    print("[4/5] 生成元数据...")
+    # 5. 生成元数据
+    print("[5/6] 生成元数据...")
     metadata_list = []
     for song in processed_songs:
         metadata = create_song_metadata(
@@ -153,8 +163,8 @@ def main():
         )
         metadata_list.append(metadata)
     
-    # 5. 导出
-    print("[5/5] 导出结果...")
+    # 6. 导出
+    print("[6/6] 导出结果...")
     js_file = export_to_js(metadata_list, output_dir / 'songs_metadata.js')
     print(f"      已导出元数据到: {js_file}")
     
@@ -162,6 +172,7 @@ def main():
     print(f"[完成] 成功处理 {len(processed_songs)} 首歌曲")
     print(f"       歌名列表: {output_dir / 'songsname.txt'}")
     print(f"       元数据文件: {js_file}")
+    print(f"       音频目录: {audio_dir}")
     print(f"       封面目录: {covers_dir}")
 
 
