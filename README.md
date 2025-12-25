@@ -30,3 +30,13 @@ uv run python cli.py --source <源目录> --output <输出目录>
 ```bash
 uv run python cli.py --source D:\Desktop\starlight\audio\合集·瞳歌 --output D:\Desktop\starlight\audio\合集·瞳歌\output
 ```
+
+## 许可证
+
+本项目采用 [BSD 3-Clause License](LICENSE) 开源。
+
+Copyright (c) 2025, GEMILUXVII
+
+This software is licensed under the BSD 3-Clause License. Redistribution and use in source and binary forms, with or without modification, are permitted provided that the conditions of the license are met.
+
+This software is provided "as is", without warranty of any kind. See the [LICENSE](LICENSE) file for details.
